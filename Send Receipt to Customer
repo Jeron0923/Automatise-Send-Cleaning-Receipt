@@ -1,0 +1,102 @@
+function onEdit(e){
+  var range = e.range;
+  var sheet = e.source.getActiveSheet();
+  
+  // Check if the active button is correct, will execute it after confirmation
+  if(sheet.getName() === "Polishing_Receipt" && range.getA1Notation() === "B37"){
+    var checkBoxValue = range.getValue();
+
+    if(checkBoxValue === true){
+      sendPDF();
+
+    sheet.getRange("B37").clearContent();
+    }
+  }
+}
+
+// Backup the details to Cleaning_Items_Ready_Collection
+function getFirstEmptyRow(sheet){
+  var data = sheet.getRange("A:E").getValues(); // Get all data in the sheet
+  for (var i = 0; i < data.length; i++){
+    if (data[i].every(cell => cell === "")){
+      return i + 1; // Return the first empty row (1-based index)
+    }
+  }
+  return data.length + 1; // Return the next row after the last if no empty row
+}
+
+function sendPDF() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  
+  // Define the variable get from the particular cell 
+  var cleaningID = sheet.getRange("D1").getValue(); // Get the unique cleaning ID for the subject purpose
+  var createdDate = sheet.getRange("B7").getValue();
+  var collectionDate = sheet.getRange("B8").getValue(); 
+  var formattedDate = Utilities.formatDate(new Date(createdDate), Session.getScriptTimeZone(), "yyMMdd");
+  var staffName = sheet.getRange("B9").getValue(); // Get the staff name to show at the end of the email
+  var customerName = sheet.getRange("B10").getValue(); // Get the Customer name for greeting purpose
+
+  var uniqueID = formattedDate + cleaningID;
+
+  /* Important step to get the customer email,
+  will not successfully send the cleaning receipt 
+  if without this email or the email incorrect,*/
+  var customerEmail = sheet.getRange("B12").getValue(); 
+
+  var subject = "Monica Vinader ION Cleaning Service #" + uniqueID; // Define the subject's content
+  var body = "Hi " + customerName + ",\n\nThank you for visiting our Monica Vinader boutique at ION Orchard today. \n\nPlease find the attached cleaning receipt order for your reference. \n\nWe appreciate your patience whilst we get your items cleaned.\n\nKind regards,\n" + staffName + "\n\nMV Ion Orchard Store\nTel.   65 6509 6568\nMonica Vinader ION Orchard Boutique, 2 Orchard Turn, ION Orchard, #B1-09,\nSingapore 238801 SGP"; // Define the content for the message
+
+  // Set the range export as a PDF
+  var range = sheet.getRange("A1:D34");
+  
+  // Create a temporary sheet for the export
+  var tempSheet = sheet.copyTo(SpreadsheetApp.getActiveSpreadsheet());
+  tempSheet.getDataRange().clear(); // Clear existing data
+  range.copyTo(tempSheet.getRange(1, 1)); // Copy the range
+  
+  // Export the temp sheet as PDF
+  var pdf = SpreadsheetApp.getActiveSpreadsheet()
+    .getBlob()
+    .setName("Cleaning_Receipt.pdf")
+    .getAs("application/pdf");
+
+  // Automatically delete the temporary sheet
+  SpreadsheetApp.getActiveSpreadsheet().deleteSheet(tempSheet);
+
+  // Send the email follow by the defined content
+  GmailApp.sendEmail(customerEmail, subject, body, {
+    attachments: [pdf],
+  });
+
+  // Wrtie the data to the Spreadsheet
+  var cleaningItemsReadyCollectionSpreadsheetId = "1cu9ipPgZv64q4xxpHsvGazWVhOJZWRfye15UZlC4DyQ";
+  var cleaningItemsReadyCollectionSpreadsheet = SpreadsheetApp.openById(cleaningItemsReadyCollectionSpreadsheetId);
+  var cleaningItemsReadyCollectionSheet = cleaningItemsReadyCollectionSpreadsheet.getSheetByName("Ready_Collection"); 
+  
+  // Find the first empty row
+  var cleaningItemsReadyCollectionRow = getFirstEmptyRow(cleaningItemsReadyCollectionSheet);
+
+  // Transfering data to the spreadsheet
+  cleaningItemsReadyCollectionSheet.getRange(cleaningItemsReadyCollectionRow, 1, 1, 5).setValues([[
+    uniqueID,      // Column A
+    collectionDate,  // Column B
+    staffName,       // Column C
+    customerName,    // Column D
+    customerEmail    // Column E
+  ]]);
+
+  //Assign a new ID after sent the email to customer
+  var newID = cleaningID + 1
+  sheet.getRange("D1").setValue(newID);
+  sheet.getRange("B6").setValue(uniqueID);
+
+  //clear content for certain cell after run the script
+  sheet.getRangeList([
+  "B9:B12", 
+  "B14:B21", 
+  "A24:B33", 
+  "B34", 
+  "B37"
+  ]).clearContent();
+}
+
