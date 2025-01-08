@@ -1,0 +1,33 @@
+function onEdit(e){
+  var range = e.range;
+  var sheet = e.source.getActiveSheet();
+
+  if(sheet.getName() === "Ready_Collection" && range.getA1Notation() === "J2"){
+    var checkBoxValue = sheet.getRange("J2").getValue();
+
+    if (checkBoxValue === true){
+      var cleaningID = sheet.getRange("H2").getValue();
+      var customerEmail = sheet.getRange("I2").getValue();
+      sendCollectedEmail(cleaningID, customerEmail);
+    }
+  }
+}
+
+function sendCollectedEmail(cleaningID, customerEmail){
+  var subject = "Monica Vinader ION Cleaning Service #" + cleaningID;
+  var searchCriteria = 'subject:"${subject}" to:${customerEmail}';
+
+  var threads = GmailApp.search(searchCriteria);
+
+  if(threads.length === 0){
+    return;
+  }
+
+  var thread = threads[0];
+  var customerName = sheet.getRange("I2").getValue();
+
+  var body = 'Hi ' + customerName + ',\n\nThank you for collecting your cleaning order today.\n\nWe hope you are really pleased with pieces that you have collected and please do not hesitate to contact us should you need further assistance regarding our 5 year warranty and lifetime repair service.\n\nOur Five Year Warranty and Lifetime Repair Service.\n\nWe want you to enjoy your new Jewellery for years to come. You can present this email in store or use the above order number online should you need to take advantage of our Five Year Warranty.\n\nWant to learn how to care for and maintain your Monica Vinader jewellery?\n\nFollow this link to find out more on our website.\n\nKind regards,\nMonica Vinader Team\n\nMV Ion Orchard Store\nTel.   65 6509 6568\nMonica Vinader ION Orchard Boutique, 2 Orchard Turn, ION Orchard, #B1-09,\nSingapore 238801 SGP';
+
+  thread.reply(body);
+  sheet.getRange("H2:K2").clearContent();
+}
